@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html ng-app="ngBoilerplate" ng-controller="AppCtrl">
+  <head>
+    <title>ng-boilerplate</title>
+
+    <!-- your compiles CSS -->
+    <link rel="stylesheet" type="text/css" href="assets/nx2client.css"/>
+
+    <!--[if IE 7>
+    <link rel="stylesheet" href="assets/font-awesome-ie7.min.css>
+    <![endif]-->
+
+
+    <!-- Lib to Lifereload Application -->
+    <script src="http://localhost:35729/livereload.js"></script>
+    <!-- libs.js contains all of the concatenated third-party libraries -->
+    <script type="text/javascript" src="assets/libs.js"></script>
+
+    <!-- this is your compiled, minified application code -->
+    <script type="text/javascript" src="assets/nx2client.js"></script>
+
+    <!-- it's stupid to have to load it here, but this is for the +1 button -->
+    <script type="text/javascript" src="https://apis.google.com/js/plusone.js">
+      { "parsetags": "explicit" }
+    </script>
+  </head>
+  <body ng-app="ngBoilerplate">
+
+    <style ng-bind-html-unsafe="style"></style>
+
+    <ng-view class="container" ng-animate="{enter: 'enter', leave: 'leave'}"></ng-view>
+
+
+  </body>
+</html>
