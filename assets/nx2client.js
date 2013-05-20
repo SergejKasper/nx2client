@@ -76,7 +76,8 @@ angular.module( 'ngBoilerplate', [
   'ngBoilerplate.activities',
   'ngBoilerplate.profile',
   'ngBoilerplate.about',
-  'ui.route'
+  'ui.route',
+  'subnav'
 ])
 
 .config( function myAppConfig ( $routeProvider ) {
@@ -183,6 +184,78 @@ $routeProvider.when('/profile', {
 
 });
 
+angular.module( 'ogGrid', [] ).directive('ogGrid', function($log, $timeout) {
+	
+	var linker = function postLink(scope, lElement, attrs) {
+			
+		scope.$on('$viewContentLoaded', function() {
+			lElement.ready(function() {
+				$log.info("TESTTT");
+				$log.info("items: " + scope.items);
+				$log.info("filter: " + scope.isotopeItemFilter);
+				var Grid = (gridbuilder)();
+				Grid.init();
+				
+			});
+		});	
+		
+		scope.$watch('items', function(newval, oldval) {
+			lElement.ready(function() {
+				$log.info("TESTTT");
+				$log.info("items: " + scope.items);
+				$log.info("filter: " + scope.isotopeItemFilter);
+				var Grid = (gridbuilder)();
+				Grid.init();
+				
+			});
+		});
+		
+		scope.$watch('isotopeItemFilter', function(newval, oldval) {
+			$log.info(scope.isotopeItemFilter);
+			if (newval != null || newval !== "") {
+				var val = newval;
+				$(".filter-out").removeClass("filter-out");
+				if (val) {
+					lElement.children("li").filter(
+							function() {
+								return $(this).find("a").attr("data-title")
+										.toLowerCase()
+										.indexOf(val) === -1;
+							}).addClass("filter-out");
+				}
+			}
+		});
+		
+		};
+
+	return {
+		restrict : 'C',
+		replace : false,
+		scope : {
+			items : '=items',
+			isotopeItemFilter : '=isotopeItemFilter'
+		},
+		link : linker
+	};
+});
+angular.module( 'playerElement', [] ).directive('playerElement', function($parse, $timeout) {
+	return {
+		restrict : 'AC',
+		scope : true,
+		replace : false,
+		template :
+		'<audio preload="none" controls loop>'+
+		'<source src = "assets/media/Barthezz-Infected.mp3"/>'+
+		'<source src = "assets/media/Barthezz-Infected.ogg"/>'+
+		'</audio>',
+		link : function(scope, elem, attrs) {
+			elem.ready(function() {
+				window.onload = elem.children('audio').audioPlayer();
+			});
+		}
+	};
+
+});
 angular.module( 'plusOne', [] )
 
 .directive( 'plusOne', function() {
@@ -199,6 +272,383 @@ angular.module( 'plusOne', [] )
 ;
 
 
+angular.module( 'slider', [] ).directive('slider', function($parse) {
+	return {
+		restrict : 'A',
+		scope : {
+			slides : '='
+		},
+		replace : false,
+		templateUrl : 'components/slider/slider.html',
+		link : function postLink(scope, iElement, attrs) {
+			window.onload = setTimeout(function() {
+				iElement.imagesLoaded(function() {
+					iElement.eislideshow({
+						easing : 'easeOutExpo',
+						titleeasing : 'easeOutExpo',
+						titlespeed : 1200
+					});
+				});
+			});
+		}
+	};
+});
+angular.module( 'subnav', [] ).directive('subnav', function($parse) {
+	return {
+		restrict : 'A',
+		replace : false,
+		scope : {
+			isotopeItemFilter : '=isotopeItemFilter',
+			menupoints : '=menupoints'
+		},
+		link : function postLink(scope, iElement, attrs) {
+			// console.log(scope.$position);
+			//			iElement.ready(function() {
+			//				$(document).scroll(navAdjust);
+			//				function navAdjust() {
+			//					// If has not activated (has no attribute "data-top"
+			//					setTimeout(function() {
+			//
+			//						if (!$('#subnav').attr('data-top')) {
+			//							// If already fixed, then do nothing
+			//							if ($('#subnav').hasClass('subnav-fixed'))
+			//								return;
+			//							// Remember top position
+			//							var offset = $('#subnav').offset()
+			//							$('#subnav').attr('data-top', offset.top);
+			//						}
+			//
+			//						if ($('#subnav').attr('data-top')
+			//								- $('#subnav').outerHeight() <= $(this)
+			//								.scrollTop())
+			//							$('#subnav').addClass('subnav-fixed');
+			//						else
+			//							$('#subnav').removeClass('subnav-fixed');
+			//					}, 100);
+			//				}
+			//			});
+		}
+	};
+});
+function gridbuilder(){
+
+	// list of items
+var $grid = $( '#og-grid' ),
+	// the items
+	$items = $grid.children( '.grid-item' ),
+	// current expanded item's index
+	current = -1,
+	// position (top) of the expanded item
+	// used to know if the preview will expand in a different row
+	previewPos = -1,
+	// extra amount of pixels to scroll the window
+	scrollExtra = 0,
+	// extra margin when expanded (between preview overlay and the next items)
+	marginExpanded = 10,
+	$window = $( window ), winsize,
+	$body = $( 'html, body' ),
+	// transitionend events
+	transEndEventNames = {
+		'WebkitTransition' : 'webkitTransitionEnd',
+		'MozTransition' : 'transitionend',
+		'OTransition' : 'oTransitionEnd',
+		'msTransition' : 'MSTransitionEnd',
+		'transition' : 'transitionend'
+	},
+	transEndEventName = transEndEventNames[ Modernizr.prefixed( 'transition' ) ],
+	// support for csstransitions
+	support = Modernizr.csstransitions,
+	// default settings
+	settings = {
+		minHeight : 500,
+		speed : 350,
+		easing : 'ease'
+	};
+
+function init( config ) {
+	// the settings..
+	settings = $.extend( true, {}, settings, config );
+
+	// preload all images
+	$grid.imagesLoaded( function() {
+
+		// save item´s size and offset
+		saveItemInfo( true );
+		// get window´s size
+		getWinSize();
+		// initialize some events
+		initEvents();
+
+	} );
+
+}
+
+// saves the item´s offset top and height (if saveheight is true)
+function saveItemInfo( saveheight ) {
+	$items.each( function() {
+		var $item = $( this );
+		$item.data( 'offsetTop', $item.offset().top );
+		if( saveheight ) {
+			$item.data( 'height', $item.height() );
+		}
+	} );
+}
+
+function initEvents() {
+	// when clicking an item, show the preview with the item´s info and large image.
+	// close the item if already expanded.
+	// also close if clicking on the item´s cross
+	$items.on( 'click', 'span.og-close', function() {
+		hidePreview();
+		return false;
+	} ).children( 'a' ).on( 'click', function(e) {
+
+		var $item = $( this ).parent();
+		// check if item already opened
+		if(current === $item.index()){
+			hidePreview();
+		}else{
+			showPreview($item);
+		}
+		return false;
+	});
+
+	// on window resize get the window´s size again
+	// reset some values..
+	$window.on( 'debouncedresize', function() {
+		scrollExtra = 0;
+		previewPos = -1;
+		// save item´s offset
+		saveItemInfo();
+		getWinSize();
+		var preview = $.data( this, 'preview' );
+		if( typeof preview != 'undefined' ) {
+			hidePreview();
+		}
+
+	} );
+
+}
+
+function getWinSize() {
+	winsize = { width : $window.width(), height : $window.height() };
+}
+
+function showPreview( $item ) {
+
+	var preview = $.data( this, 'preview' ),
+		// item´s offset top
+		position = $item.data( 'offsetTop' );
+
+	scrollExtra = 0;
+
+	// if a preview exists and previewPos is different (different row) from item´s top then close it
+	if( typeof preview != 'undefined' ) {
+
+		// not in the same row
+		if( previewPos !== position ) {
+			// if position > previewPos then we need to take te current preview´s height in consideration when scrolling the window
+			if( position > previewPos ) {
+				scrollExtra = preview.height;
+			}
+			hidePreview();
+		}
+		// same row
+		else {
+			preview.update( $item );
+			return false;
+		}
+	}
+	// update previewPos
+	previewPos = position;
+	// initialize new preview for the clicked item
+	preview = $.data( this, 'preview', new Preview( $item ) );
+	// expand preview overlay
+	preview.open();
+
+}
+
+function hidePreview() {
+	current = -1;
+	var preview = $.data( this, 'preview' );
+	preview.close();
+	$.removeData( this, 'preview' );
+}
+
+// the preview obj / overlay
+function Preview( $item ) {
+	this.$item = $item;
+	this.expandedIdx = this.$item.index();
+	this.create();
+	this.update();
+}
+
+Preview.prototype = {
+	create : function() {
+		// create Preview structure:
+		this.$title = $( '<h3></h3>' );
+		this.$description = $( '<p></p>' );
+		this.$href = $( '<a href="#">Visit website</a>' );
+		this.$details = $( '<div class="og-details"></div>' ).append( this.$title, this.$description, this.$href );
+		this.$loading = $( '<div class="og-loading"></div>' );
+		this.$fullimage = $( '<div class="og-fullimg"></div>' ).append( this.$loading );
+		this.$closePreview = $( '<span class="og-close"></span>' );
+		this.$previewInner = $( '<div class="og-expander-inner"></div>' ).append( this.$closePreview, this.$fullimage, this.$details );
+		this.$previewEl = $( '<div class="og-expander"></div>' ).append( this.$previewInner );
+		// append preview element to the item
+		this.$item.append( this.getEl() );
+		// set the transitions for the preview and the item
+		if( support ) {
+			this.setTransition();
+		}
+	},
+	update : function( $item ) {
+
+		if( $item ) {
+			this.$item = $item;
+		}
+		// if already expanded remove class "og-expanded" from current item and add it to new item
+		if( current !== -1 ) {
+			var $currentItem = $items.eq( current );
+			$currentItem.removeClass( 'og-expanded' );
+			this.$item.addClass( 'og-expanded' );
+			// position the preview correctly
+			this.positionPreview();
+		}
+
+		// update current value
+		current = this.$item.index();
+
+		// update preview´s content
+		var $itemEl = this.$item.children( 'a' ),
+			eldata = {
+				href : $itemEl.attr( 'href' ),
+				largesrc : $itemEl.data( 'largesrc' ),
+				title : $itemEl.data( 'title' ),
+				description : $itemEl.data( 'description' )
+			};
+
+		this.$title.html( eldata.title );
+		this.$description.html( eldata.description );
+		this.$href.attr( 'href', eldata.href );
+
+		var self = this;
+		// remove the current image in the preview
+		if( typeof self.$largeImg != 'undefined' ) {
+			self.$largeImg.remove();
+		}
+
+		// preload large image and add it to the preview
+		// for smaller screens we don´t display the large image (the media query will hide the fullimage wrapper)
+		if( self.$fullimage.is( ':visible' ) ) {
+			this.$loading.show();
+			$( '<img/>' ).load( function() {
+				var $img = $( this );
+				if( $img.attr( 'src' ) === self.$item.children('a').data( 'largesrc' ) ) {
+					self.$loading.hide();
+					self.$fullimage.find( 'img' ).remove();
+					self.$largeImg = $img.fadeIn( 350 );
+					self.$fullimage.append( self.$largeImg );
+				}
+			}).attr( 'src', eldata.largesrc );
+		}
+	},
+	open : function() {
+
+		setTimeout( $.proxy( function() {
+		// set the height for the preview and the item
+			this.setHeights();
+			// scroll to position the preview in the right place
+			this.positionPreview();
+		}, this ), 25 );
+
+	},
+	close : function() {
+
+		var self = this,
+			onEndFn = function() {
+				if( support ) {
+					$( this ).off( transEndEventName );
+				}
+				self.$item.removeClass( 'og-expanded' );
+				self.$previewEl.remove();
+			};
+
+		setTimeout( $.proxy( function() {
+
+			if( typeof this.$largeImg !== 'undefined' ) {
+				this.$largeImg.fadeOut( 'fast' );
+			}
+			this.$previewEl.css( 'height', 0 );
+			// the current expanded item (might be different from this.$item)
+			var $expandedItem = $items.eq( this.expandedIdx );
+			$expandedItem.css( 'height', $expandedItem.data( 'height' ) ).on( transEndEventName, onEndFn );
+
+			if( !support ) {
+				onEndFn.call();
+			}
+
+		}, this ), 25 );
+		return false;
+
+	},
+	calcHeight : function() {
+
+		var heightPreview = winsize.height - this.$item.data( 'height' ) - marginExpanded,
+			itemHeight = winsize.height;
+
+		if( heightPreview < settings.minHeight ) {
+			heightPreview = settings.minHeight;
+			itemHeight = settings.minHeight + this.$item.data( 'height' ) + marginExpanded;
+		}
+
+		this.height = heightPreview;
+		this.itemHeight = itemHeight;
+
+	},
+	setHeights : function() {
+
+		var self = this,
+			onEndFn = function() {
+				if( support ) {
+					self.$item.off( transEndEventName );
+				}
+				self.$item.addClass( 'og-expanded' );
+			};
+
+		this.calcHeight();
+		this.$previewEl.css( 'height', this.height );
+		this.$item.css( 'height', this.itemHeight ).on( transEndEventName, onEndFn );
+
+		if( !support ) {
+			onEndFn.call();
+		}
+
+	},
+	positionPreview : function() {
+
+		// scroll page
+		// case 1 : preview height + item height fits in window´s height
+		// case 2 : preview height + item height does not fit in window´s height and preview height is smaller than window´s height
+		// case 3 : preview height + item height does not fit in window´s height and preview height is bigger than window´s height
+		var position = this.$item.data( 'offsetTop' ),
+			previewOffsetT = this.$previewEl.offset().top - scrollExtra,
+		scrollVal = this.height + this.$item.data( 'height' ) + marginExpanded <= winsize.height ? position : this.height < winsize.height ? previewOffsetT - ( winsize.height - this.height ) : previewOffsetT;
+		$body.animate( { scrollTop : scrollVal }, settings.speed );
+
+	},
+	setTransition  : function() {
+		this.$previewEl.css( 'transition', 'height ' + settings.speed + 'ms ' + settings.easing );
+		this.$item.css( 'transition', 'height ' + settings.speed + 'ms ' + settings.easing );
+	},
+	getEl : function() {
+		return this.$previewEl;
+	}
+};
+
+return { init : init };
+
+}
 angular.module( 'titleService', [])
 
 .factory( 'titleService', function ( $document ) {
@@ -522,7 +972,7 @@ angular.module('component-templates', []);
 angular.module("home/home.tpl.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("home/home.tpl.html",
     "<div class=\"page page3\">" +
-    "    <b>Home</b><br><br>" +
+    "    <b>Noise-X-Perience</b><br><br>" +
     "    <button  ng-click=\"direction('back');go('/activities')\"  >go to Activities</button>" +
     "    <button  ng-click=\"direction('front');go('/profile')\"  >go to Profile</button>" +
     "</div>");
@@ -611,5 +1061,56 @@ angular.module('ui.route', []).directive('uiRoute', ['$location', '$parse', func
     }
   };
 }]);
+
+/*
+ * debouncedresize: special jQuery event that happens once after a window resize
+ *
+ * latest version and complete README available on Github:
+ * https://github.com/louisremi/jquery-smartresize
+ *
+ * Copyright 2012 @louis_remi
+ * Licensed under the MIT license.
+ *
+ * This saved you an hour of work? 
+ * Send me music http://www.amazon.co.uk/wishlist/HNTU0468LQON
+ */
+(function($) {
+
+var $event = $.event,
+	$special,
+	resizeTimeout;
+
+$special = $event.special.debouncedresize = {
+	setup: function() {
+		$( this ).on( "resize", $special.handler );
+	},
+	teardown: function() {
+		$( this ).off( "resize", $special.handler );
+	},
+	handler: function( event, execAsap ) {
+		// Save the context
+		var context = this,
+			args = arguments,
+			dispatch = function() {
+				// set correct event type
+				event.type = "debouncedresize";
+				$event.dispatch.apply( context, args );
+			};
+
+		if ( resizeTimeout ) {
+			clearTimeout( resizeTimeout );
+		}
+
+		execAsap ?
+			dispatch() :
+			resizeTimeout = setTimeout( dispatch, $special.threshold );
+	},
+	threshold: 150
+};
+
+})(jQuery);
+(function(c,q){var m="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";c.fn.imagesLoaded=function(f){function n(){var b=c(j),a=c(h);d&&(h.length?d.reject(e,b,a):d.resolve(e));c.isFunction(f)&&f.call(g,e,b,a)}function p(b){k(b.target,"error"===b.type)}function k(b,a){b.src===m||-1!==c.inArray(b,l)||(l.push(b),a?h.push(b):j.push(b),c.data(b,"imagesLoaded",{isBroken:a,src:b.src}),r&&d.notifyWith(c(b),[a,e,c(j),c(h)]),e.length===l.length&&(setTimeout(n),e.unbind(".imagesLoaded",
+p)))}var g=this,d=c.isFunction(c.Deferred)?c.Deferred():0,r=c.isFunction(d.notify),e=g.find("img").add(g.filter("img")),l=[],j=[],h=[];c.isPlainObject(f)&&c.each(f,function(b,a){if("callback"===b)f=a;else if(d)d[b](a)});e.length?e.bind("load.imagesLoaded error.imagesLoaded",p).each(function(b,a){var d=a.src,e=c.data(a,"imagesLoaded");if(e&&e.src===d)k(a,e.isBroken);else if(a.complete&&a.naturalWidth!==q)k(a,0===a.naturalWidth||0===a.naturalHeight);else if(a.readyState||a.complete)a.src=m,a.src=d}):
+n();return d?d.promise(g):g}})(jQuery);
 
 })( window, window.angular );
