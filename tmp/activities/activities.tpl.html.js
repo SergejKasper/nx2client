@@ -2,10 +2,9 @@ angular.module("activities/activities.tpl.html", []).run(["$templateCache", func
   $templateCache.put("activities/activities.tpl.html",
     "<div class=\"page bg-content\">" +
     "    <section ng-controller=\"ActivitiesCtrl\">" +
-    "    <button style=\"float: left;\" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()'>Back</button> " +
-    "    <button style=\"float: right;\" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()'>Next</button>" +
     "    <div class=\"container subnav-container-elem\">" +
-    "      <div subnav menupoints='subnav.menupoints' isotope-item-filter='isotopeItemFilter'>" +
+    "    " +
+    "    <div subnav menupoints='subnav.menupoints' isotope-item-filter='isotopeItemFilter'>" +
     "        <div class=\"subnav\" id=\"subnav\">" +
     "          <ul class=\"nav nav-pills\">" +
     "            <li class=\"subnav-search\">" +

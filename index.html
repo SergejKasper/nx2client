@@ -19,7 +19,7 @@
     <!-- this is your compiled, minified application code -->
     <script type="text/javascript" src="assets/nx2client.js"></script>
 
-    <!-- it's stupid to have to load it here, but this is for the +1 button -->
+    <!-- it's stupid to have to load it here, but this is for the +1 div -->
     <script type="text/javascript" src="https://apis.google.com/js/plusone.js">
       { "parsetags": "explicit" }
     </script>
@@ -81,7 +81,9 @@
       <div class="row-fluid">
         <div class="bg-content">
           <div class="container"-->
-            <div my-view in-class="in" out-class="out" class="view-content" style="min-height: 500px;"></div>
+            <div style="float: left;" class="arrow-left" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()'><img ng-src="assets/pics/leftArrow.png"/></div> 
+            <div my-view in-class="in" out-class="out" class="view-content"></div>
+            <div style="float: right;" class="arrow-right" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()'><img ng-src="assets/pics/rightArrow.png"/></div>
           <!--/div>
         </div>
       </div>
