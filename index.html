@@ -24,12 +24,68 @@
       { "parsetags": "explicit" }
     </script>
   </head>
-  <body ng-app="ngBoilerplate">
-
-    <style ng-bind-html-unsafe="style"></style>
-
-    <ng-view class="container" ng-animate="{enter: 'enter', leave: 'leave'}"></ng-view>
-
-
+  <body ng-app="ngBoilerplate" id="nxp-content">
+  <div id="main-nav" class="navbar navbar-fixed-top pull-center">
+      <div>
+        <div class="nav-container">
+          <a class="brand" href="/home"><span>NoiseXperience</span></a><a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span>
+          </a>
+          <div class="nav-collapse collapse pull-center">
+            <ul class="nav">
+              <li class="active"><a href="/home"> Home </a></li>
+                <li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown">Das Event <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li class="nav-header"><a href="#about">Dein Program gestalten !</a></li>
+                  <li class="divider"></li>
+                  <li><a href="#contact">Location</a></li>
+                  <li><a href="#about">Gäste</a></li>
+                  <li><a href="#">Wir</a></li>
+                </ul>
+              </li>
+              <li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown">Mein Program <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <!--li class="@("active".when(nav=="restricted"))"><a href="@routes.Application.restricted()">@Messages("playauthenticate.navigation.restricted")</a></li--> 
+                  <li class="nav-header"><a href="#about">Mein Partyplan</a></li>
+                  <li class="divider"></li>
+                  <li><a href="#pics">Gallerie</a></li>
+                  <li><a href="#">Facebook</a></li>
+                  <li><a href="#">Twitter</a></li>
+                </ul>
+              </li>
+            </ul>
+          <!--div id="auth" class="btn-group pull-right">
+            @subjectPresentOr() {
+             @defining(Application.getLocalUser(session())) { user => 
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#"> <i class="icon-user"></i> @user.name <span
+              class="caret"></span>
+            </a>
+              <ul class="dropdown-menu">
+                <li><a href="@routes.Application.profile()">@Messages("playauthenticate.navigation.profile")</a></li>
+                <li><a href="@routes.Account.link()">@Messages("playauthenticate.navigation.link_more")</a></li>
+                <li class="divider"></li>
+                <li><a href="@com.feth.play.module.pa.controllers.routes.Authenticate.logout()"><i class="icon-off"></i> @Messages("playauthenticate.navigation.logout")</a></li>
+              </ul>
+              } 
+            }{ 
+            <a href="@routes.Application.login()" class="btn btn-primary btn @("disabled".when(nav=="login"))">@Messages("playauthenticate.navigation.login")</a>
+            <a href="@routes.Application.signup()" class="btn btn-primary btn @("disabled".when(nav=="signup"))">@Messages("playauthenticate.navigation.signup")</a>
+            }
+          </div-->
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Nav End -->
+      <!--div id="container">
+      <div playerelement class="audio-wrapper"></div>
+      <div class="row-fluid">
+        <div class="bg-content">
+          <div class="container"-->
+            <div my-view in-class="in" out-class="out" class="view-content" style="min-height: 500px;"></div>
+          <!--/div>
+        </div>
+      </div>
+    </div>
+    </div-->
   </body>
 </html>

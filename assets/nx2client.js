@@ -1,5 +1,5 @@
 /**
- * nx2client - v0.2.0-SNAPSHOT - 2013-05-20
+ * nx2client - v0.2.0-SNAPSHOT - 2013-05-23
  * http://noiseexperience.de
  *
  * Copyright (c) 2013 Sergej Kasper
@@ -65,52 +65,156 @@ $routeProvider.when('/activities', {
 
 })
 
-.controller('ActivitiesCtrl', function($scope, $rootScope, $location) {
-
+.controller('ActivitiesCtrl', function($scope, $rootScope, $location, Navigation) {
+	Navigation.backPage = null;
+    Navigation.nextPage = '/home';
 });
 
-angular.module( 'ngBoilerplate', [
-  'app-templates',
-  'component-templates',
-  'ngBoilerplate.home',
-  'ngBoilerplate.activities',
-  'ngBoilerplate.profile',
-  'ngBoilerplate.about',
-  'ui.route',
-  'subnav'
-])
+angular.module('ngBoilerplate', ['app-templates', 'component-templates', 'ngBoilerplate.home', 'ngBoilerplate.activities', 'ngBoilerplate.profile', 'ngBoilerplate.about', 'ui.route', 'subnav'])
 
-.config( function myAppConfig ( $routeProvider ) {
-  $routeProvider
-  .otherwise({
-    redirectTo:'/home'
-  });
+.config(function myAppConfig($routeProvider) {
+    $routeProvider.otherwise({
+        redirectTo: '/home'
+    });
 })
 
-.run( function run ( titleService ) {
-  titleService.setSuffix( ' | ngBoilerplate' );
+.run(function run(titleService) {
+    titleService.setSuffix(' | ngBoilerplate');
 })
 
-.controller('AppCtrl', function AppCtrl ($scope, $rootScope, $location) {
+.service('Navigation', function($location) {
+    return {
+        transition: 'backwardTransition',
+        backPage: null,
+        nextPage: null,
+        back: function() {
+            this.transition = 'backwardTransition';
+            $location.path(this.backPage);
+        },
+        next: function() {
+            this.transition = 'forwardTransition';
+            $location.path(this.nextPage);
+        }
+    };
+})
 
-  var styles = {
-    // appear from right
-    front: '.enter-setup {   position:absolute;   -webkit-transition: 0.5s ease-out all;   -webkit-transform:translate3d(100%,0,0)  }  .enter-setup.enter-start {   position:absolute;  -webkit-transform:translate3d(0,0,0)}  .leave-setup {   position:absolute;   -webkit-transition: 0.5s ease-out all;   -webkit-transform:translate3d(0,0,0)} .leave-setup.leave-start {   position:absolute;  -webkit-transform:translate3d(-100%,0,0) };',
-    // appear from left
-    back: '.enter-setup {   position:absolute;   -webkit-transition: 0.5s ease-out all; -webkit-transform:translate3d(-100%,0,0)}  .enter-setup.enter-start {   position:absolute;   -webkit-transform:translate3d(0,0,0) }  .leave-setup {   position:absolute;   -webkit-transition: 0.5s ease-out all;  -webkit-transform:translate3d(0,0,0)} .leave-setup.leave-start {   position:absolute;  -webkit-transform:translate3d(100%,0,0) };'
-  };
+.controller('AppCtrl', function AppCtrl($scope, $rootScope, $location, Navigation) {
 
-  $scope.direction = function(dir) {
-    // update the animations classes
-    $rootScope.style = styles[dir];
-  };
+    var styles = {
+        // appear from right
+        front: '.enter-setup { -webkit-animation: moveFromLeft .6s ease both; -moz-animation: moveFromLeft .6s ease both; animation: moveFromLeft .6s ease both; }  .enter-setup.enter-start {}; .leave-setup {-webkit-animation: moveToRight .6s ease both; -moz-animation: moveToRight .6s ease both; animation: moveToRight .6s ease both;} .leave-setup.leave-start {};',
+        // appear from left
+        back: '.enter-setup { -webkit-animation: moveFromRight .6s ease both; -moz-animation: moveFromRight .6s ease both; animation: moveFromRight .6s ease both;} .enter-setup.enter-start {};  .leave-setup {-webkit-animation: moveToLeft .6s ease both; -moz-animation: moveToLeft .6s ease both; animation: moveToLeft .6s ease both; } .leave-setup.leave-start {};'
+    };
 
-  $scope.go = function(path) {
-    $location.path(path);
-  };
-  $scope.direction('front');
+    $scope.direction = function(dir) {
+        // update the animations classes
+        $rootScope.style = styles[dir];
+    };
+
+    $scope.go = function(path) {
+        $location.path(path);
+    };
+    $scope.direction('front');
+    $scope.Navigation = Navigation;
+}).directive('myView', function($http, $templateCache, $route, $anchorScroll, $compile, $controller, Navigation) {
+    return {
+        restrict: 'ECA',
+        terminal: true,
+        link: function(scope, parentElm, attr) {
+            var partials = [],
+                inClass = attr.inClass,
+                outClass = attr.outClass,
+                currentPartial, lastPartial;
+
+            scope.$on('$routeChangeSuccess', update);
+            update();
+
+            //Create just an element for a partial
+
+            function createPartial(template) {
+                //Create it this way because some templates give error
+                //when you just do angular.element(template) (unknown reason)
+                var d = document.createElement("div");
+                d.innerHTML = template;
+                $('.page', d).addClass(Navigation.transition);
+                return {
+                    element: angular.element(d.children[0]),
+                    //Store a reference to controller, but don'r create it yet
+                    controller: $route.current && $route.current.controller,
+                    locals: $route.current && $route.current.locals
+                };
+            }
+
+            //'Angularize' a partial: Create scope/controller, $compile element, insert into dom
+
+            function setupPartial(partial) {
+                var cur = $route.current;
+                partial.scope = cur.locals.$scope = scope.$new();
+                //partial.controller contains a reference to the 
+                //controller constructor at first
+                //Now we actually instantiate it
+                if (partial.controller) {
+                    partial.controller = $controller(partial.controller, partial.locals);
+                    partial.element.contents().data('$ngControllerController', partial.controller);
+                    $compile(partial.element.contents())(partial.scope);
+                }
+                parentElm.append(partial.element);
+                partial.scope.$emit('$viewContentLoaded');
+            }
+
+            function destroyPartial(partial) {
+                partial.scope.$destroy();
+                partial.element.remove();
+                partial = null;
+            }
+
+            //Transition end stuff from bootstrap:
+            //http://twitter.github.com/bootstrap/assets/js/bootstrap-transition.js
+            var transEndEvents = ['webkitTransitionEnd', 'transitionend', 'oTransitionEnd', 'otransitionend', 'transitionend'];
+
+            function onTransitionEnd(el, callback) {
+                for (var i = 0; i < transEndEvents.length; i++) {
+                    el[0].addEventListener(transEndEvents[i], callback);
+                }
+            }
+
+            function transition(inPartial, outPartial) {
+                //Do a timeout so the initial class for the
+                //element has time to 'take effect'
+                setTimeout(function() {
+                    inPartial.element.addClass(inClass);
+                    onTransitionEnd(inPartial.element, updatePartialQueue);
+                    if (outPartial) {
+                        $(outPartial.element).removeClass();
+                        outPartial.element.addClass(outClass);
+                        outPartial.element.addClass(Navigation.transition);
+                        onTransitionEnd(outPartial.element, function() {
+                            destroyPartial(outPartial);
+                        });
+                    }
+                });
+            }
+
+            function updatePartialQueue() {
+                //Bring in a new partial if it exists
+                if (partials.length > 0) {
+                    var newPartial = partials.pop();
+                    setupPartial(newPartial);
+                    transition(newPartial, currentPartial);
+                    currentPartial = newPartial;
+                }
+            }
+
+            function update() {
+                if ($route.current && $route.current.locals.$template) {
+                    partials.unshift(createPartial($route.current.locals.$template));
+                    updatePartialQueue();
+                }
+            }
+        }
+    };
 });
-
 
 /**
  * Each section of the site has its own module. It probably also has
@@ -144,8 +248,9 @@ $routeProvider.when('/home', {
 
 })
 
-.controller('HomeCtrl', function($scope, $rootScope, $location) {
-
+.controller('HomeCtrl', function($scope, $rootScope, $location, Navigation) {
+	Navigation.backPage = '/activities';
+    Navigation.nextPage = '/profile';
 });
 
 /**
@@ -180,8 +285,9 @@ $routeProvider.when('/profile', {
 
 })
 
-.controller('ProfileCtrl', function($scope, $rootScope, $location) {
-
+.controller('ProfileCtrl', function($scope, $rootScope, $location, Navigation) {
+	Navigation.backPage = '/home';
+    Navigation.nextPage = null;
 });
 
 angular.module( 'ogGrid', [] ).directive('ogGrid', function($log, $timeout) {
@@ -238,6 +344,225 @@ angular.module( 'ogGrid', [] ).directive('ogGrid', function($log, $timeout) {
 		link : linker
 	};
 });
+/*
+	AUTHOR: Osvaldas Valutis, www.osvaldas.info
+
+
+
+;(function( $, window, document, undefined )
+{
+	var isTouch = 'ontouchstart' in window,
+		eStart = isTouch ? 'touchstart'	: 'mousedown',
+		eMove = isTouch ? 'touchmove'	: 'mousemove',
+		eEnd = isTouch ? 'touchend'	: 'mouseup',
+		eCancel = isTouch ? 'touchcancel'	: 'mouseup',
+		secondsToTime = function( secs )
+		{
+			var hoursDiv = secs / 3600, hours = Math.floor( hoursDiv ), minutesDiv = secs % 3600 / 60, minutes = Math.floor( minutesDiv ), seconds = Math.ceil( secs % 3600 % 60 );
+			if( seconds > 59 ) { seconds = 0; minutes = Math.ceil( minutesDiv ); }
+			if( minutes > 59 ) { minutes = 0; hours = Math.ceil( hoursDiv ); }
+			return ( hours === 0 ? '': hours > 0 && hours.toString().length < 2 ? '0'+hours+':' : hours+':' ) + ( minutes.toString().length < 2 ? '0'+minutes : minutes ) + ':' + ( seconds.toString().length < 2 ? '0'+seconds : seconds );
+		},
+		canPlayType  = function( file )
+		{
+			var audioElement = document.createElement( 'audio' );
+			return !!( audioElement.canPlayType && audioElement.canPlayType( 'audio/' + file.split( '.' ).pop().toLowerCase() + ';' ).replace( /no/, '' ) );
+		};
+
+	$.fn.audioPlayer = function( fparams )
+	{
+		var params		= $.extend( { classPrefix: 'audioplayer', strPlay: 'Play', strPause: 'Pause', strVolume: 'Volume' }, fparams ),
+			cssClass	= {},
+			cssClassSub =
+			{
+				playPause:'playpause',
+				playing:'playing',
+				stopped:'stopped',
+				time:'time',
+				timeCurrent:'time-current',
+				timeDuration:'time-duration',
+				bar:'bar',
+				barLoaded:'bar-loaded',
+				barPlayed:'bar-played',
+				volume:'volume',
+				volumeButton:'volume-button',
+				volumeAdjust:'volume-adjust',
+				noVolume:'novolume',
+				muted:'muted',
+				mini:'mini'
+			};
+
+		for( var subName in cssClassSub )
+			cssClass[ subName ] = params.classPrefix + '-' + cssClassSub[ subName ];
+
+		this.each( function()
+		{
+			if( $( this ).prop( 'tagName' ).toLowerCase() != 'audio' )
+				return false;
+
+			var $this= $( this ),
+				audioFile= $this.attr( 'src' ),
+				isAutoPlaySet= $this.get( 0 ).getAttribute( 'autoplay' ),
+				isAutoPlay = (isAutoPlaySet === '' || isAutoPlaySet === 'autoplay') ? true : false,
+				isLoopSet= $this.get( 0 ).getAttribute( 'loop' ),
+				isLoop = (isLoopSet === '' || isLoopSet === 'loop') ? true : false,
+				isSupport= false;
+
+			if( typeof audioFile === 'undefined' )
+			{
+				$this.find( 'source' ).each( function()
+				{
+					audioFile = $( this ).attr( 'src' );
+					if( typeof audioFile !== 'undefined' && canPlayType( audioFile ) )
+					{
+						isSupport = true;
+						return false;
+					}
+				});
+			}
+			else if( canPlayType( audioFile ) ) isSupport = true;
+
+			var thePlayer = $( '<div class="' + params.classPrefix + '">' + ( isSupport ? $( '<div>' ).append( $this.eq( 0 ).clone() ).html() : '<embed src="' + audioFile + '" width="0" height="0" volume="100" autostart="' + isAutoPlay.toString() +'" loop="' + isLoop.toString() + '" />' ) + '<div class="' + cssClass.playPause + '" title="' + params.strPlay + '"><a href="#">' + params.strPlay + '</a></div></div>' ),
+				theAudioSupport  = isSupport ? thePlayer.find( 'audio' ) : thePlayer.find( 'embed' ),
+				theAudio = theAudioSupport.get( 0 );
+
+			if( isSupport )
+			{
+				thePlayer.find( 'audio' ).css( { 'width': 0, 'height': 0, 'visibility': 'hidden' } );
+				thePlayer.append( '<div class="' + cssClass.time + ' ' + cssClass.timeCurrent + '"></div><div class="' + cssClass.bar + '"><div class="' + cssClass.barLoaded + '"></div><div class="' + cssClass.barPlayed + '"></div></div><div class="' + cssClass.time + ' ' + cssClass.timeDuration + '"></div><div class="' + cssClass.volume + '"><div class="' + cssClass.volumeButton + '" title="' + params.strVolume + '"><a href="#">' + params.strVolume + '</a></div><div class="' + cssClass.volumeAdjust + '"><div><div></div></div></div></div>' );
+
+				var theBar= thePlayer.find( '.' + cssClass.bar ),
+					barPlayed= thePlayer.find( '.' + cssClass.barPlayed ),
+					barLoaded= thePlayer.find( '.' + cssClass.barLoaded ),
+					timeCurrent= thePlayer.find( '.' + cssClass.timeCurrent ),
+					timeDuration= thePlayer.find( '.' + cssClass.timeDuration ),
+					volumeButton= thePlayer.find( '.' + cssClass.volumeButton ),
+					volumeAdjuster= thePlayer.find( '.' + cssClass.volumeAdjust + ' > div' ),
+					volumeDefaul= 0,
+					adjustCurrentTime = function( e )
+					{
+						theRealEvent= isTouch ? e.originalEvent.touches[ 0 ] : e;
+						theAudio.currentTime = Math.round( ( theAudio.duration * ( theRealEvent.pageX - theBar.offset().left ) ) / theBar.width() );
+					},
+					adjustVolume = function( e )
+					{
+						theRealEvent	= isTouch ? e.originalEvent.touches[ 0 ] : e;
+						theAudio.volume = Math.abs( ( theRealEvent.pageY - ( volumeAdjuster.offset().top + volumeAdjuster.height() ) ) / volumeAdjuster.height() );
+					},
+					updateLoadBar = function()
+					{
+						var interval = setInterval( function()
+						{
+							if( theAudio.buffered.length < 1 ) return true;
+							barLoaded.width( ( theAudio.buffered.end( 0 ) / theAudio.duration ) * 100 + '%' );
+							if( Math.floor( theAudio.buffered.end( 0 ) ) >= Math.floor( theAudio.duration ) ) clearInterval( interval );
+						}, 100 );
+					};
+
+				var volumeTestDefault = theAudio.volume, volumeTestValue = theAudio.volume = 0.111;
+				if( Math.round( theAudio.volume * 1000 ) / 1000 == volumeTestValue ) theAudio.volume = volumeTestDefault;
+				else thePlayer.addClass( cssClass.noVolume );
+
+				timeDuration.html( '&hellip;' );
+				timeCurrent.html( secondsToTime( 0 ) );
+
+				theAudio.addEventListener( 'loadeddata', function()
+				{
+					updateLoadBar();
+					timeDuration.html( $.isNumeric( theAudio.duration ) ? secondsToTime( theAudio.duration ) : '&hellip;' );
+					volumeAdjuster.find( 'div' ).height( theAudio.volume * 100 + '%' );
+					volumeDefault = theAudio.volume;
+				});
+
+				theAudio.addEventListener( 'timeupdate', function()
+				{
+					timeCurrent.html( secondsToTime( theAudio.currentTime ) );
+					barPlayed.width( ( theAudio.currentTime / theAudio.duration ) * 100 + '%' );
+				});
+
+				theAudio.addEventListener( 'volumechange', function()
+				{
+					volumeAdjuster.find( 'div' ).height( theAudio.volume * 100 + '%' );
+					if( theAudio.volume > 0 && thePlayer.hasClass( cssClass.muted ) ) thePlayer.removeClass( cssClass.muted );
+					if( theAudio.volume <= 0 && !thePlayer.hasClass( cssClass.muted ) ) thePlayer.addClass( cssClass.muted );
+				});
+
+				theAudio.addEventListener( 'ended', function()
+				{
+					thePlayer.removeClass( cssClass.playing ).addClass( cssClass.stopped );
+				});
+
+				theBar.on( eStart, function( e )
+				{
+					adjustCurrentTime( e );
+					theBar.on( eMove, function( e ) { adjustCurrentTime( e ); } );
+				})
+				.on( eCancel, function()
+				{
+					theBar.unbind( eMove );
+				});
+
+				volumeButton.on( 'click', function()
+				{
+					if( thePlayer.hasClass( cssClass.muted ) )
+					{
+						thePlayer.removeClass( cssClass.muted );
+						theAudio.volume = volumeDefault;
+					}
+					else
+					{
+						thePlayer.addClass( cssClass.muted );
+						volumeDefault = theAudio.volume;
+						theAudio.volume = 0;
+					}
+					return false;
+				});
+
+				volumeAdjuster.on( eStart, function( e )
+				{
+					adjustVolume( e );
+					volumeAdjuster.on( eMove, function( e ) { adjustVolume( e ); } );
+				})
+				.on( eCancel, function()
+				{
+					volumeAdjuster.unbind( eMove );
+				});
+			}
+			else thePlayer.addClass( cssClass.mini );
+
+			thePlayer.addClass( isAutoPlay ? cssClass.playing : cssClass.stopped );
+
+			thePlayer.find( '.' + cssClass.playPause ).on( 'click', function()
+			{
+				if( thePlayer.hasClass( cssClass.playing ) )
+				{
+					$( this ).attr( 'title', params.strPlay ).find( 'a' ).html( params.strPlay );
+					thePlayer.removeClass( cssClass.playing ).addClass( cssClass.stopped );
+					if(isSupport){
+						theAudio.pause();
+					} else{
+						theAudio.Stop();
+					}
+				}
+				else
+				{
+					$( this ).attr( 'title', params.strPause ).find( 'a' ).html( params.strPause );
+					thePlayer.addClass( cssClass.playing ).removeClass( cssClass.stopped );
+					if (isSupport){
+						theAudio.play();
+					} else{
+						theAudio.Play();
+					}
+				}
+				return false;
+			});
+
+			$this.replaceWith( thePlayer );
+		});
+		return this;
+	};
+})( jQuery, window, document );
+*/
 angular.module( 'playerElement', [] ).directive('playerElement', function($parse, $timeout) {
 	return {
 		restrict : 'AC',
@@ -959,9 +1284,42 @@ angular.module("about/about.tpl.html", []).run(["$templateCache", function($temp
 
 angular.module("activities/activities.tpl.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("activities/activities.tpl.html",
-    "<div class=\"page page1\">" +
-    "    <b>Activities Page</b><br><br>" +
-    "    <button  ng-click=\"direction('front');go('/home')\"  >Home</button>" +
+    "<div class=\"page bg-content\">" +
+    "    <section ng-controller=\"ActivitiesCtrl\">" +
+    "    <button style=\"float: left;\" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()'>Back</button> " +
+    "    <button style=\"float: right;\" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()'>Next</button>" +
+    "    <div class=\"container subnav-container-elem\">" +
+    "      <div subnav menupoints='subnav.menupoints' isotope-item-filter='isotopeItemFilter'>" +
+    "        <div class=\"subnav\" id=\"subnav\">" +
+    "          <ul class=\"nav nav-pills\">" +
+    "            <li class=\"subnav-search\">" +
+    "                <!--<ul class=\"dropdown-menu\">" +
+    "                  <li ng-repeat=\"menupoint in menupoints\"><a href=\"{{menupoint.url}}\">{{menupoint.name}}</a></li>" +
+    "                </ul>-->" +
+    "                <a href=\"#/newActivity\">Neue Activity erstellen!</a>" +
+    "            </li>" +
+    "            <li>" +
+    "              <input type=\"text\" class=\"search-query input-medium\" placeholder=\"Suche im Partyprogramm!\" ng-model=\"isotopeItemFilter\">" +
+    "            </li>" +
+    "          </ul>" +
+    "        </div>" +
+    "      </div>" +
+    "    </div>" +
+    "    <div class=\"row-fuid\">" +
+    "      <div class=\"span12\">" +
+    "        <div class=\"main\">" +
+    "        <ul id=\"og-grid\" class=\"og-grid\" items=\"activities\" isotope-Item-Filter=\"isotopeItemFilter\">" +
+    "          <li ng-repeat=\"item in items\" class=\"grid-item\">" +
+    "            <a href=\"#\" data-largesrc=\"assets/components/thumbnailgrid/images/{{item.path}}\" data-title=\"{{item.title}}\" data-description=\"{{item.description}}\">" +
+    "              <img ng-src=\"assets/components/thumbnailgrid/images/thumbs/{{item.path}}\" alt=\"img01\"/>" +
+    "            </a>" +
+    "          </li>" +
+    "        </ul>" +
+    "        <p></p>" +
+    "      </div>" +
+    "      </div>" +
+    "    </div>" +
+    "  </section>" +
     "</div>");
 }]);
 
@@ -971,18 +1329,24 @@ angular.module('component-templates', []);
 
 angular.module("home/home.tpl.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("home/home.tpl.html",
-    "<div class=\"page page3\">" +
-    "    <b>Noise-X-Perience</b><br><br>" +
-    "    <button  ng-click=\"direction('back');go('/activities')\"  >go to Activities</button>" +
-    "    <button  ng-click=\"direction('front');go('/profile')\"  >go to Profile</button>" +
+    "<div class=\"page bg-content\">" +
+    "  <div ng-controller=\"HomeCtrl\">" +
+    "  <button style=\"float: left;\" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()'>Back</button> " +
+    "  <button style=\"float: right;\" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()'>Next</button>" +
+    "  <div>" +
+    "    <div slider slides=\"slides\" id=\"ei-slider\" class=\"ei-slider\"></div>" +
+    "  </div>" +
     "</div>");
 }]);
 
 angular.module("profile/profile.tpl.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("profile/profile.tpl.html",
-    "<div class=\"page page1\">" +
+    "<div class=\"page bg-content\">" +
+    "	<section ng-controller=\"ProfileCtrl\">" +
     "    <b>Profile</b><br><br>" +
-    "    <button  ng-click=\"direction('front');go('/home')\">go to home</button>" +
+    "    <button style=\"float: left;\" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()'>Back</button> " +
+    "    <button style=\"float: right;\" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()'>Next</button>" +
+    "	</section>" +
     "</div>");
 }]);
 
