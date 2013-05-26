@@ -81,9 +81,9 @@
       <div class="row-fluid">
         <div class="bg-content">
           <div class="container"-->
-            <div style="float: left;" class="arrow-left" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()'><img ng-src="assets/pics/leftArrow.png"/></div> 
+            <div style="float: left;" class="arrow-left" ng-Disabled='!Navigation.backPage', ng-click='Navigation.back()' ng-hide="!Navigation.backPage"><img ng-src="assets/pics/leftArrow.png"/></div> 
             <div my-view in-class="in" out-class="out" class="view-content"></div>
-            <div style="float: right;" class="arrow-right" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()'><img ng-src="assets/pics/rightArrow.png"/></div>
+            <div style="float: right;" class="arrow-right" ng-Disabled='!Navigation.nextPage', ng-click='Navigation.next()' ng-hide="!Navigation.nextPage"><img ng-src="assets/pics/rightArrow.png"/></div>
           <!--/div>
         </div>
       </div>
