@@ -26,7 +26,8 @@
   ;
   angular.module('ngBoilerplate.activities', [
     'titleService',
-    'plusOne'
+    'plusOne',
+    'ogGrid'
   ]).config([
     '$routeProvider',
     function config($routeProvider) {
@@ -37,12 +38,50 @@
     }
   ]).controller('ActivitiesCtrl', [
     '$scope',
+    '$http',
     '$rootScope',
     '$location',
     'Navigation',
-    function ($scope, $rootScope, $location, Navigation) {
+    function ($scope, $http, $rootScope, $location, Navigation) {
       Navigation.backPage = null;
       Navigation.nextPage = '/home';
+      $scope.url = $scope.rootUrl + '/getActivities';
+      $scope.activities = [];
+      $scope.fetchRecipients = function () {
+        $http.get($scope.url).then(function (result) {
+          $scope.activities = result.data;
+        });
+      };
+      $scope.fetchRecipients();
+      $scope.sortAsc = true;
+      $scope.update = function () {
+        $scope.sortAsc = !$scope.sortAsc;
+      };
+      $scope.isotopeItemFilter = [];
+    }
+  ]).controller('ActivityDetailController', [
+    '$scope',
+    '$routeParams',
+    '$http',
+    '$timeout',
+    function ($scope, $routeParams, $http, $timeout) {
+      $scope.url = $scope.rootUrl + '/getActivity/' + $routeParams.activityId + '/get';
+      $scope.item = [];
+      $scope.fetchRecipients = function () {
+        $http.get($scope.url).then(function (result) {
+          $scope.item = result.data;
+        });
+      };
+      $scope.fetchRecipients();
+      $scope.counter = new Date().getTime();
+      $scope.counterDays = 0;
+      $scope.counterHours = 0;
+      $scope.counterSeconds = 0;
+      setInterval(function () {
+        $scope.counter--;
+        $scope.$apply();
+        console.log($scope.countDown);
+      }, 1000);
     }
   ]);
   angular.module('ngBoilerplate', [
@@ -73,11 +112,15 @@
         nextPage: null,
         back: function () {
           this.transition = 'backwardTransition';
-          $location.path(this.backPage);
+          if (this.backPage != null) {
+            $location.path(this.backPage);
+          }
         },
         next: function () {
           this.transition = 'forwardTransition';
-          $location.path(this.nextPage);
+          if (this.nextPage != null) {
+            $location.path(this.nextPage);
+          }
         }
       };
     }
@@ -87,6 +130,7 @@
     '$location',
     'Navigation',
     function AppCtrl($scope, $rootScope, $location, Navigation) {
+      $scope.rootUrl = 'http://hidden-cove-1718.herokuapp.com';
       var styles = {
           front: '.enter-setup { -webkit-animation: moveFromLeft .6s ease both; -moz-animation: moveFromLeft .6s ease both; animation: moveFromLeft .6s ease both; }  .enter-setup.enter-start {}; .leave-setup {-webkit-animation: moveToRight .6s ease both; -moz-animation: moveToRight .6s ease both; animation: moveToRight .6s ease both;} .leave-setup.leave-start {};',
           back: '.enter-setup { -webkit-animation: moveFromRight .6s ease both; -moz-animation: moveFromRight .6s ease both; animation: moveFromRight .6s ease both;} .enter-setup.enter-start {};  .leave-setup {-webkit-animation: moveToLeft .6s ease both; -moz-animation: moveToLeft .6s ease both; animation: moveToLeft .6s ease both; } .leave-setup.leave-start {};'
@@ -205,6 +249,20 @@
     function ($scope, $rootScope, $location, Navigation) {
       Navigation.backPage = '/activities';
       Navigation.nextPage = '/profile';
+      $scope.slides = [
+        {
+          'title': 'Die NXP ist zur\xfcck',
+          'subtitle': 'bald ist es soweit'
+        },
+        {
+          'title': 'Die letzte NXP war legend\xe4r',
+          'subtitle': 'wir setzen einen drauf'
+        },
+        {
+          'title': 'Du bist gefragt',
+          'subtitle': 'gestallte unsere Party'
+        }
+      ];
     }
   ]);
   angular.module('ngBoilerplate.profile', [
@@ -268,6 +326,7 @@
         restrict: 'C',
         replace: false,
         scope: {
+          dataUrl: '=dataUrl',
           items: '=items',
           isotopeItemFilter: '=isotopeItemFilter'
         },
@@ -582,7 +641,7 @@
   angular.module('activities/activities.tpl.html', []).run([
     '$templateCache',
     function ($templateCache) {
-      $templateCache.put('activities/activities.tpl.html', '<div class="page bg-content">' + '    <section ng-controller="ActivitiesCtrl">' + '    <div class="container subnav-container-elem">' + '    ' + '    <div subnav menupoints=\'subnav.menupoints\' isotope-item-filter=\'isotopeItemFilter\'>' + '        <div class="subnav" id="subnav">' + '          <ul class="nav nav-pills">' + '            <li class="subnav-search">' + '                <!--<ul class="dropdown-menu">' + '                  <li ng-repeat="menupoint in menupoints"><a href="{{menupoint.url}}">{{menupoint.name}}</a></li>' + '                </ul>-->' + '                <a href="#/newActivity">Neue Activity erstellen!</a>' + '            </li>' + '            <li>' + '              <input type="text" class="search-query input-medium" placeholder="Suche im Partyprogramm!" ng-model="isotopeItemFilter">' + '            </li>' + '          </ul>' + '        </div>' + '      </div>' + '    </div>' + '    <div class="row-fuid">' + '      <div class="span12">' + '        <div class="main">' + '        <ul id="og-grid" class="og-grid" items="activities" isotope-Item-Filter="isotopeItemFilter">' + '          <li ng-repeat="item in items" class="grid-item">' + '            <a href="#" data-largesrc="assets/components/thumbnailgrid/images/{{item.path}}" data-title="{{item.title}}" data-description="{{item.description}}">' + '              <img ng-src="assets/components/thumbnailgrid/images/thumbs/{{item.path}}" alt="img01"/>' + '            </a>' + '          </li>' + '        </ul>' + '        <p></p>' + '      </div>' + '      </div>' + '    </div>' + '  </section>' + '</div>');
+      $templateCache.put('activities/activities.tpl.html', '<div class="page bg-content">' + '    <section ng-controller="ActivitiesCtrl">' + '    <div class="container subnav-container-elem">' + '    ' + '    <div subnav menupoints=\'subnav.menupoints\' isotope-item-filter=\'isotopeItemFilter\'>' + '        <div class="subnav" id="subnav">' + '          <ul class="nav nav-pills">' + '            <li class="subnav-search">' + '                <!--<ul class="dropdown-menu">' + '                  <li ng-repeat="menupoint in menupoints"><a href="{{menupoint.url}}">{{menupoint.name}}</a></li>' + '                </ul>-->' + '                <a href="#/newActivity">Neue Activity erstellen!</a>' + '            </li>' + '            <li>' + '              <input type="text" class="search-query input-medium" placeholder="Suche im Partyprogramm!" ng-model="isotopeItemFilter">' + '            </li>' + '          </ul>' + '        </div>' + '      </div>' + '    </div>' + '    <div class="row-fuid">' + '        <div class="main">' + '        <ul id="og-grid" class="og-grid" items="activities" dataUrl="rootUrl" isotope-Item-Filter="isotopeItemFilter">' + '          <li ng-repeat="item in items" class="grid-item">' + '            <a href="#" data-largesrc="http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}" data-title="{{item.title}}" data-description="{{item.description}}">' + '              <img ng-src="http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}" alt="img01"/>' + '            </a>' + '          </li>' + '        </ul>' + '        <p></p>' + '      </div>' + '    </div>' + '  </section>' + '</div>');
     }
   ]);
   angular.module('app-templates', [
