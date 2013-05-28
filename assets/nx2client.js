@@ -1,5 +1,5 @@
 /**
- * nx2client - v0.2.0-SNAPSHOT - 2013-05-26
+ * nx2client - v0.2.0-SNAPSHOT - 2013-05-29
  * http://noiseexperience.de
  *
  * Copyright (c) 2013 Sergej Kasper
@@ -112,8 +112,13 @@ angular.module('ngBoilerplate', ['app-templates', 'component-templates', 'ngBoil
     });
 })
 
-.run(function run(titleService) {
+.run(function run($rootScope, $location, User, titleService) {
     titleService.setSuffix(' | ngBoilerplate');
+    return $rootScope.$on('$routeChangeStart', function(event, next, current) {
+        if (!User.isAuthenticated() && next.templateUrl == 'profile/profile.tpl.html') {
+            return $location.path("/profile/login");
+        }
+    });
 })
 
 .service('Navigation', function($location) {
@@ -123,17 +128,17 @@ angular.module('ngBoilerplate', ['app-templates', 'component-templates', 'ngBoil
         nextPage: null,
         back: function() {
             this.transition = 'backwardTransition';
-            if(this.backPage!=null) {$location.path(this.backPage);}
+            if(this.backPage !== null) {$location.path(this.backPage);}
         },
         next: function() {
             this.transition = 'forwardTransition';
-            if(this.nextPage!=null) {$location.path(this.nextPage);}
+            if(this.nextPage!== null) {$location.path(this.nextPage);}
         }
     };
 })
 
 .controller('AppCtrl', function AppCtrl($scope, $rootScope, $location, Navigation) {
-    $scope.rootUrl = "http://hidden-cove-1718.herokuapp.com";
+    $scope.rootUrl = "http://nxbackend.herokuapp.com";
     var styles = {
         // appear from right
         front: '.enter-setup { -webkit-animation: moveFromLeft .6s ease both; -moz-animation: moveFromLeft .6s ease both; animation: moveFromLeft .6s ease both; }  .enter-setup.enter-start {}; .leave-setup {-webkit-animation: moveToRight .6s ease both; -moz-animation: moveToRight .6s ease both; animation: moveToRight .6s ease both;} .leave-setup.leave-start {};',
@@ -249,7 +254,6 @@ angular.module('ngBoilerplate', ['app-templates', 'component-templates', 'ngBoil
         }
     };
 });
-
 /**
  * Each section of the site has its own module. It probably also has
  * submodules, though this boilerplate is too simple to demonstrate it. Within
@@ -284,7 +288,7 @@ $routeProvider.when('/home', {
 
 .controller('HomeCtrl', function($scope, $rootScope, $location, Navigation) {
 	Navigation.backPage = '/activities';
-    Navigation.nextPage = '/profile';
+    Navigation.nextPage = '/profile/assignments';
     $scope.slides = [
 	{"title" : "Die NXP ist zurück", "subtitle": "bald ist es soweit"},
 	{"title" : "Die letzte NXP war legendär", "subtitle": "wir setzen einen drauf"},
@@ -311,8 +315,13 @@ $routeProvider.when('/home', {
  * specified, as shown below.
  */
 angular.module( 'ngBoilerplate.profile', [
+  'ui.bootstrap.accordion',
+  'ui.route',
+  'ui.showhide',
+  'ui.validate',
   'titleService',
-  'plusOne'
+  'plusOne',
+  'authService'
 ])
 
 /**
@@ -321,16 +330,72 @@ angular.module( 'ngBoilerplate.profile', [
  * this way makes each module more "self-contained".
  */
 .config(function config( $routeProvider ) {
-$routeProvider.when('/profile', {
-  controller: 'ProfileCtrl',
-    templateUrl: 'profile/profile.tpl.html'
+$routeProvider.when('/profile/login', {
+  controller: 'LoginCtrl',
+    templateUrl: 'profile/login.tpl.html'
+  }).when('/profile/assignments',{
+	templateUrl: 'profile/profile.tpl.html',
+	controller: 'ProfileCtrl'
   });
-
 })
 
-.controller('ProfileCtrl', function($scope, $rootScope, $location, Navigation) {
+.controller('LoginCtrl', function($scope, $location, User, Navigation) {
 	Navigation.backPage = '/home';
     Navigation.nextPage = null;
+	$scope.login = function() {
+	return User.login($scope.username, $scope.password, function(result) {
+		if (!result) {
+				return window.alert('Authentication failed!');
+			} else {
+				return $scope.$apply(function() {
+					return $location.path('/assignments');
+				});
+			}
+		});
+	};
+})
+
+.controller('ProfileCtrl', function($scope, $rootScope, $location, Navigation, User) {
+	Navigation.backPage = '/home';
+    Navigation.nextPage = null;
+    $scope.User = User;
+});
+angular.module('authService', []).factory('User', function() {
+  var _this = this;
+  this.authenticated = false;
+  this.name = null;
+  return {
+    isAuthenticated: function() {
+      return _this.authenticated;
+    },
+    getName: function() {
+      return _this.name;
+    },
+    login: function(username, password, callback) {
+      return $.post('http://nxbackend.herokuapp.com/login', {
+        username: username,
+        password: password
+      }, (function(data) {
+        if (data.result) {
+          _this.name = username;
+          _this.authenticated = true;
+        }
+        return callback(data.result);
+      }), 'json');
+    },
+    logout: function(callback) {
+      if (_this.authenticated) {
+        return $.post('/logout', {}, (function(data) {
+          if (data.result) {
+            _this.authenticated = false;
+          }
+          return callback(data.result);
+        }), 'json');
+      } else {
+        return callback(false);
+      }
+    }
+  };
 });
 
 angular.module( 'ogGrid', [] ).directive('ogGrid', function($log, $timeout) {
@@ -1133,8 +1198,8 @@ angular.module("activities/activities.tpl.html", []).run(["$templateCache", func
     "        <div class=\"main\">" +
     "        <ul id=\"og-grid\" class=\"og-grid\" items=\"activities\" dataUrl=\"rootUrl\" isotope-Item-Filter=\"isotopeItemFilter\">" +
     "          <li ng-repeat=\"item in items\" class=\"grid-item\">" +
-    "            <a href=\"#\" data-largesrc=\"http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}\" data-title=\"{{item.title}}\" data-description=\"{{item.description}}\">" +
-    "              <img ng-src=\"http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}\" alt=\"img01\"/>" +
+    "            <a href=\"#\" data-largesrc=\"http://nxbackend.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}\" data-title=\"{{item.title}}\" data-description=\"{{item.description}}\">" +
+    "              <img ng-src=\"http://nxbackend.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}\" alt=\"img01\"/>" +
     "            </a>" +
     "          </li>" +
     "        </ul>" +
@@ -1145,7 +1210,7 @@ angular.module("activities/activities.tpl.html", []).run(["$templateCache", func
     "</div>");
 }]);
 
-angular.module('app-templates', ['about/about.tpl.html', 'activities/activities.tpl.html', 'home/home.tpl.html', 'profile/profile.tpl.html']);
+angular.module('app-templates', ['about/about.tpl.html', 'activities/activities.tpl.html', 'home/home.tpl.html', 'profile/login.tpl.html', 'profile/profile.tpl.html']);
 
 angular.module('component-templates', []);
 
@@ -1159,11 +1224,97 @@ angular.module("home/home.tpl.html", []).run(["$templateCache", function($templa
     "</div>");
 }]);
 
+angular.module("profile/login.tpl.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("profile/login.tpl.html",
+    "<div class=\"page bg-content\">" +
+    "	<section ng-controller=\"LoginCtrl\">" +
+    "    <div class=\"bg-content-auth\">" +
+    "		<accordion>" +
+    "			<accordion-group heading=\"Login\" is-open=\"true\">" +
+    "			<!--form ng-submit=\"login()\"-->" +
+    "			<form action=\"/login\" method=\"POST\" class=\"ng-pristine ng-valid\">" +
+    "	    	<div>" +
+    "				<div>" +
+    "					<div ng-show=\"formValidationError\"> " +
+    "						<p class=\"error\">" +
+    "							<span class=\"label label-important\">{{formVaildationError}}</span>" +
+    "						</p>" +
+    "					</div>" +
+    "					<div class=\"clearfix\" id=\"email_field\">" +
+    "						<div class=\"input\">" +
+    "							<label for=\"email\" class=\"youmail\" data-icon=\"e\" > Deine E-Mail Adresse</label>" +
+    "							<input type=\"text\" id=\"email\" name=\"email\" ng-model=\"email\" value=\"\">" +
+    "							<span class=\"help-inline danger\" ng-show=\"!!form.email.$error.validator\">{{email}} ist ungültig</span>" +
+    "							<span class=\"help-inline success\" ng-show=\"form.email.$error.validator\">{{email}} ist ok</span>" +
+    "						</div>" +
+    "					</div>" +
+    "					<div class=\"clearfix  \" id=\"password_field\">" +
+    "						<div class=\"input\">" +
+    "							<label for=\"password\" class=\"youpasswd\" data-icon=\"p\">Dein Passwort </label>" +
+    "							<input type=\"password\" id=\"password\" name=\"password\" required ng-model=\"password\">" +
+    "							<span class=\"help-inline\"></span>" +
+    "							<span class=\"help-block\"></span> " +
+    "						</div>" +
+    "					</div>" +
+    "					<input class=\"btn btn-primary\" type=\"submit\" id=\"submit\" value=\"Submit\" />" +
+    "					<br/>" +
+    "					<br/>" +
+    "					<a href=\"javascript:void(0);\" onclick=\"\">Passwort vergessen</a>" +
+    "				</div>" +
+    "	    	</div>" +
+    "	    	</form>" +
+    "	    	</accordion-group>" +
+    "			<accordion-group heading=\"Register\">" +
+    "				<form ng-submit=\"register()\">" +
+    "				<div>" +
+    "					<div class=\"clearfix  \" id=\"reg_name_field\">" +
+    "					<div class=\"input\">				" +
+    "						<label for=\"reg_name\" class=\"youuser\" data-icon=\"u\" > Dein Username</label>" +
+    "						<input type=\"text\" ng-model=\"reg_name\" id=\"reg_name\" name=\"name\" value=\"\">		" +
+    "						<span class=\"help-inline\"></span>" +
+    "						<span class=\"help-block\"></span> " +
+    "					</div>" +
+    "					</div>" +
+    "				<div class=\"clearfix  \" id=\"reg_email_field\">" +
+    "				<div class=\"input\">" +
+    "					<label for=\"reg_email\" class=\"youmail\" data-icon=\"e\" > Deine E-Mail Adresse</label>" +
+    "					<input type=\"text\" ng-model=\"reg_email\" id=\"reg_email\" name=\"email\" value=\"\">" +
+    "					<span class=\"help-inline\"></span>" +
+    "					<span class=\"help-block\"></span> " +
+    "				</div>" +
+    "				</div>" +
+    "				<div class=\"clearfix\" id=\"reg_password_field\">" +
+    "					<label for=\"reg_password\" class=\"youmail\" data-icon=\"p\" > Dein Passwort</label>" +
+    "					<div class=\"input\">	" +
+    "						<input type=\"password\" id=\"reg_password\" ng-model=\"reg_password\" name=\"password\">" +
+    "						<span class=\"help-inline\"></span>" +
+    "						<span class=\"help-block\"></span>" +
+    "					</div>" +
+    "				</div>" +
+    "				<div class=\"clearfix  \" id=\"reg_repeatPassword_field\">" +
+    "					<label for=\"reg_repeatPassword\" class=\"youmail\" data-icon=\"e\" > Wiederhole das gewählte Passwort</label>" +
+    "					<div class=\"input\">				" +
+    "						<input type=\"password\" id=\"reg_repeatPassword\" ng-model=\"reg_repeatPassword\" name=\"repeatPassword\">" +
+    "						" +
+    "						<span class=\"help-inline\"></span>" +
+    "						<span class=\"help-block\"></span> " +
+    "					</div>" +
+    "				</div>" +
+    "			<input type=\"submit\" value=\"Jetzt registrieren\" class=\"btn btn-primary\">" +
+    "		</form>" +
+    "	</accordion-group>" +
+    "	</accordion>" +
+    "	</div>" +
+    "</section>" +
+    "</div>");
+}]);
+
 angular.module("profile/profile.tpl.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("profile/profile.tpl.html",
     "<div class=\"page bg-content\">" +
     "	<section ng-controller=\"ProfileCtrl\">" +
-    "    <b>Profile</b><br><br>" +
+    "    <p>Welcome, {{User.getName()}}!</p>" +
+    "	<button ng-click=\"User.logout()\">Logout</button>" +
     "	</section>" +
     "</div>");
 }]);
@@ -1243,6 +1394,146 @@ angular.module('ui.route', []).directive('uiRoute', ['$location', '$parse', func
     }
   };
 }]);
+
+/**
+ * uiShow Directive
+ *
+ * Adds a 'ui-show' class to the element instead of display:block
+ * Created to allow tighter control  of CSS without bulkier directives
+ *
+ * @param expression {boolean} evaluated expression to determine if the class should be added
+ */
+angular.module('ui.showhide',[])
+.directive('uiShow', [function () {
+  return function (scope, elm, attrs) {
+    scope.$watch(attrs.uiShow, function (newVal, oldVal) {
+      if (newVal) {
+        elm.addClass('ui-show');
+      } else {
+        elm.removeClass('ui-show');
+      }
+    });
+  };
+}])
+
+/**
+ * uiHide Directive
+ *
+ * Adds a 'ui-hide' class to the element instead of display:block
+ * Created to allow tighter control  of CSS without bulkier directives
+ *
+ * @param expression {boolean} evaluated expression to determine if the class should be added
+ */
+.directive('uiHide', [function () {
+  return function (scope, elm, attrs) {
+    scope.$watch(attrs.uiHide, function (newVal, oldVal) {
+      if (newVal) {
+        elm.addClass('ui-hide');
+      } else {
+        elm.removeClass('ui-hide');
+      }
+    });
+  };
+}])
+
+/**
+ * uiToggle Directive
+ *
+ * Adds a class 'ui-show' if true, and a 'ui-hide' if false to the element instead of display:block/display:none
+ * Created to allow tighter control  of CSS without bulkier directives. This also allows you to override the
+ * default visibility of the element using either class.
+ *
+ * @param expression {boolean} evaluated expression to determine if the class should be added
+ */
+.directive('uiToggle', [function () {
+  return function (scope, elm, attrs) {
+    scope.$watch(attrs.uiToggle, function (newVal, oldVal) {
+      if (newVal) {
+        elm.removeClass('ui-hide').addClass('ui-show');
+      } else {
+        elm.removeClass('ui-show').addClass('ui-hide');
+      }
+    });
+  };
+}]);
+
+/**
+ * General-purpose validator for ngModel.
+ * angular.js comes with several built-in validation mechanism for input fields (ngRequired, ngPattern etc.) but using
+ * an arbitrary validation function requires creation of a custom formatters and / or parsers.
+ * The ui-validate directive makes it easy to use any function(s) defined in scope as a validator function(s).
+ * A validator function will trigger validation on both model and input changes.
+ *
+ * @example <input ui-validate=" 'myValidatorFunction($value)' ">
+ * @example <input ui-validate="{ foo : '$value > anotherModel', bar : 'validateFoo($value)' }">
+ * @example <input ui-validate="{ foo : '$value > anotherModel' }" ui-validate-watch=" 'anotherModel' ">
+ * @example <input ui-validate="{ foo : '$value > anotherModel', bar : 'validateFoo($value)' }" ui-validate-watch=" { foo : 'anotherModel' } ">
+ *
+ * @param ui-validate {string|object literal} If strings is passed it should be a scope's function to be used as a validator.
+ * If an object literal is passed a key denotes a validation error key while a value should be a validator function.
+ * In both cases validator function should take a value to validate as its argument and should return true/false indicating a validation result.
+ */
+angular.module('ui.validate',[]).directive('uiValidate', function () {
+
+  return {
+    restrict: 'A',
+    require: 'ngModel',
+    link: function (scope, elm, attrs, ctrl) {
+      var validateFn, watch, validators = {},
+        validateExpr = scope.$eval(attrs.uiValidate);
+
+      if (!validateExpr){ return;}
+
+      if (angular.isString(validateExpr)) {
+        validateExpr = { validator: validateExpr };
+      }
+
+      angular.forEach(validateExpr, function (exprssn, key) {
+        validateFn = function (valueToValidate) {
+          var expression = scope.$eval(exprssn, { '$value' : valueToValidate });
+          if (angular.isFunction(expression.then)) {
+            // expression is a promise
+            expression.then(function(){
+              ctrl.$setValidity(key, true);
+            }, function(){
+              ctrl.$setValidity(key, false);
+            });
+            return valueToValidate;
+          } else if (expression) {
+            // expression is true
+            ctrl.$setValidity(key, true);
+            return valueToValidate;
+          } else {
+            // expression is false
+            ctrl.$setValidity(key, false);
+            return undefined;
+          }
+        };
+        validators[key] = validateFn;
+        ctrl.$formatters.push(validateFn);
+        ctrl.$parsers.push(validateFn);
+      });
+
+      // Support for ui-validate-watch
+      if (attrs.uiValidateWatch) {
+        watch = scope.$eval(attrs.uiValidateWatch);
+        if (angular.isString(watch)) {
+          scope.$watch(watch, function(){
+            angular.forEach(validators, function(validatorFn, key){
+              validatorFn(ctrl.$modelValue);
+            });
+          });
+        } else {
+          angular.forEach(watch, function(expression, key){
+            scope.$watch(expression, function(){
+              validators[key](ctrl.$modelValue);
+            });
+          });
+        }
+      }
+    }
+  };
+});
 
 /*
  * debouncedresize: special jQuery event that happens once after a window resize

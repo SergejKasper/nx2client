@@ -24,8 +24,8 @@ angular.module("activities/activities.tpl.html", []).run(["$templateCache", func
     "        <div class=\"main\">" +
     "        <ul id=\"og-grid\" class=\"og-grid\" items=\"activities\" dataUrl=\"rootUrl\" isotope-Item-Filter=\"isotopeItemFilter\">" +
     "          <li ng-repeat=\"item in items\" class=\"grid-item\">" +
-    "            <a href=\"#\" data-largesrc=\"http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}\" data-title=\"{{item.title}}\" data-description=\"{{item.description}}\">" +
-    "              <img ng-src=\"http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}\" alt=\"img01\"/>" +
+    "            <a href=\"#\" data-largesrc=\"http://nxbackend.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}\" data-title=\"{{item.title}}\" data-description=\"{{item.description}}\">" +
+    "              <img ng-src=\"http://nxbackend.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}\" alt=\"img01\"/>" +
     "            </a>" +
     "          </li>" +
     "        </ul>" +

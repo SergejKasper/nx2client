@@ -99,9 +99,17 @@
       $routeProvider.otherwise({ redirectTo: '/home' });
     }
   ]).run([
+    '$rootScope',
+    '$location',
+    'User',
     'titleService',
-    function run(titleService) {
+    function run($rootScope, $location, User, titleService) {
       titleService.setSuffix(' | ngBoilerplate');
+      return $rootScope.$on('$routeChangeStart', function (event, next, current) {
+        if (!User.isAuthenticated() && next.templateUrl == 'profile/profile.tpl.html') {
+          return $location.path('/profile/login');
+        }
+      });
     }
   ]).service('Navigation', [
     '$location',
@@ -112,13 +120,13 @@
         nextPage: null,
         back: function () {
           this.transition = 'backwardTransition';
-          if (this.backPage != null) {
+          if (this.backPage !== null) {
             $location.path(this.backPage);
           }
         },
         next: function () {
           this.transition = 'forwardTransition';
-          if (this.nextPage != null) {
+          if (this.nextPage !== null) {
             $location.path(this.nextPage);
           }
         }
@@ -130,7 +138,7 @@
     '$location',
     'Navigation',
     function AppCtrl($scope, $rootScope, $location, Navigation) {
-      $scope.rootUrl = 'http://hidden-cove-1718.herokuapp.com';
+      $scope.rootUrl = 'http://nxbackend.herokuapp.com';
       var styles = {
           front: '.enter-setup { -webkit-animation: moveFromLeft .6s ease both; -moz-animation: moveFromLeft .6s ease both; animation: moveFromLeft .6s ease both; }  .enter-setup.enter-start {}; .leave-setup {-webkit-animation: moveToRight .6s ease both; -moz-animation: moveToRight .6s ease both; animation: moveToRight .6s ease both;} .leave-setup.leave-start {};',
           back: '.enter-setup { -webkit-animation: moveFromRight .6s ease both; -moz-animation: moveFromRight .6s ease both; animation: moveFromRight .6s ease both;} .enter-setup.enter-start {};  .leave-setup {-webkit-animation: moveToLeft .6s ease both; -moz-animation: moveToLeft .6s ease both; animation: moveToLeft .6s ease both; } .leave-setup.leave-start {};'
@@ -248,7 +256,7 @@
     'Navigation',
     function ($scope, $rootScope, $location, Navigation) {
       Navigation.backPage = '/activities';
-      Navigation.nextPage = '/profile';
+      Navigation.nextPage = '/profile/assignments';
       $scope.slides = [
         {
           'title': 'Die NXP ist zur\xfcck',
@@ -266,26 +274,93 @@
     }
   ]);
   angular.module('ngBoilerplate.profile', [
+    'ui.bootstrap.accordion',
+    'ui.route',
+    'ui.showhide',
+    'ui.validate',
     'titleService',
-    'plusOne'
+    'plusOne',
+    'authService'
   ]).config([
     '$routeProvider',
     function config($routeProvider) {
-      $routeProvider.when('/profile', {
-        controller: 'ProfileCtrl',
-        templateUrl: 'profile/profile.tpl.html'
+      $routeProvider.when('/profile/login', {
+        controller: 'LoginCtrl',
+        templateUrl: 'profile/login.tpl.html'
+      }).when('/profile/assignments', {
+        templateUrl: 'profile/profile.tpl.html',
+        controller: 'ProfileCtrl'
       });
+    }
+  ]).controller('LoginCtrl', [
+    '$scope',
+    '$location',
+    'User',
+    'Navigation',
+    function ($scope, $location, User, Navigation) {
+      Navigation.backPage = '/home';
+      Navigation.nextPage = null;
+      $scope.login = function () {
+        return User.login($scope.username, $scope.password, function (result) {
+          if (!result) {
+            return window.alert('Authentication failed!');
+          } else {
+            return $scope.$apply(function () {
+              return $location.path('/assignments');
+            });
+          }
+        });
+      };
     }
   ]).controller('ProfileCtrl', [
     '$scope',
     '$rootScope',
     '$location',
     'Navigation',
-    function ($scope, $rootScope, $location, Navigation) {
+    'User',
+    function ($scope, $rootScope, $location, Navigation, User) {
       Navigation.backPage = '/home';
       Navigation.nextPage = null;
+      $scope.User = User;
     }
   ]);
+  angular.module('authService', []).factory('User', function () {
+    var _this = this;
+    this.authenticated = false;
+    this.name = null;
+    return {
+      isAuthenticated: function () {
+        return _this.authenticated;
+      },
+      getName: function () {
+        return _this.name;
+      },
+      login: function (username, password, callback) {
+        return $.post('http://nxbackend.herokuapp.com/login', {
+          username: username,
+          password: password
+        }, function (data) {
+          if (data.result) {
+            _this.name = username;
+            _this.authenticated = true;
+          }
+          return callback(data.result);
+        }, 'json');
+      },
+      logout: function (callback) {
+        if (_this.authenticated) {
+          return $.post('/logout', {}, function (data) {
+            if (data.result) {
+              _this.authenticated = false;
+            }
+            return callback(data.result);
+          }, 'json');
+        } else {
+          return callback(false);
+        }
+      }
+    };
+  });
   angular.module('ogGrid', []).directive('ogGrid', [
     '$log',
     '$timeout',
@@ -641,13 +716,14 @@
   angular.module('activities/activities.tpl.html', []).run([
     '$templateCache',
     function ($templateCache) {
-      $templateCache.put('activities/activities.tpl.html', '<div class="page bg-content">' + '    <section ng-controller="ActivitiesCtrl">' + '    <div class="container subnav-container-elem">' + '    ' + '    <div subnav menupoints=\'subnav.menupoints\' isotope-item-filter=\'isotopeItemFilter\'>' + '        <div class="subnav" id="subnav">' + '          <ul class="nav nav-pills">' + '            <li class="subnav-search">' + '                <!--<ul class="dropdown-menu">' + '                  <li ng-repeat="menupoint in menupoints"><a href="{{menupoint.url}}">{{menupoint.name}}</a></li>' + '                </ul>-->' + '                <a href="#/newActivity">Neue Activity erstellen!</a>' + '            </li>' + '            <li>' + '              <input type="text" class="search-query input-medium" placeholder="Suche im Partyprogramm!" ng-model="isotopeItemFilter">' + '            </li>' + '          </ul>' + '        </div>' + '      </div>' + '    </div>' + '    <div class="row-fuid">' + '        <div class="main">' + '        <ul id="og-grid" class="og-grid" items="activities" dataUrl="rootUrl" isotope-Item-Filter="isotopeItemFilter">' + '          <li ng-repeat="item in items" class="grid-item">' + '            <a href="#" data-largesrc="http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}" data-title="{{item.title}}" data-description="{{item.description}}">' + '              <img ng-src="http://hidden-cove-1718.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}" alt="img01"/>' + '            </a>' + '          </li>' + '        </ul>' + '        <p></p>' + '      </div>' + '    </div>' + '  </section>' + '</div>');
+      $templateCache.put('activities/activities.tpl.html', '<div class="page bg-content">' + '    <section ng-controller="ActivitiesCtrl">' + '    <div class="container subnav-container-elem">' + '    ' + '    <div subnav menupoints=\'subnav.menupoints\' isotope-item-filter=\'isotopeItemFilter\'>' + '        <div class="subnav" id="subnav">' + '          <ul class="nav nav-pills">' + '            <li class="subnav-search">' + '                <!--<ul class="dropdown-menu">' + '                  <li ng-repeat="menupoint in menupoints"><a href="{{menupoint.url}}">{{menupoint.name}}</a></li>' + '                </ul>-->' + '                <a href="#/newActivity">Neue Activity erstellen!</a>' + '            </li>' + '            <li>' + '              <input type="text" class="search-query input-medium" placeholder="Suche im Partyprogramm!" ng-model="isotopeItemFilter">' + '            </li>' + '          </ul>' + '        </div>' + '      </div>' + '    </div>' + '    <div class="row-fuid">' + '        <div class="main">' + '        <ul id="og-grid" class="og-grid" items="activities" dataUrl="rootUrl" isotope-Item-Filter="isotopeItemFilter">' + '          <li ng-repeat="item in items" class="grid-item">' + '            <a href="#" data-largesrc="http://nxbackend.herokuapp.com/assets/components/thumbnailgrid/images/{{item.path}}" data-title="{{item.title}}" data-description="{{item.description}}">' + '              <img ng-src="http://nxbackend.herokuapp.com/assets/components/thumbnailgrid/images/thumbs/{{item.path}}" alt="img01"/>' + '            </a>' + '          </li>' + '        </ul>' + '        <p></p>' + '      </div>' + '    </div>' + '  </section>' + '</div>');
     }
   ]);
   angular.module('app-templates', [
     'about/about.tpl.html',
     'activities/activities.tpl.html',
     'home/home.tpl.html',
+    'profile/login.tpl.html',
     'profile/profile.tpl.html'
   ]);
   angular.module('component-templates', []);
@@ -657,10 +733,16 @@
       $templateCache.put('home/home.tpl.html', '<div class="page bg-content">' + '  <div ng-controller="HomeCtrl">' + '  <div>' + '    <div slider slides="slides" id="ei-slider" class="ei-slider"></div>' + '  </div>' + '</div>');
     }
   ]);
+  angular.module('profile/login.tpl.html', []).run([
+    '$templateCache',
+    function ($templateCache) {
+      $templateCache.put('profile/login.tpl.html', '<div class="page bg-content">' + '\t<section ng-controller="LoginCtrl">' + '    <div class="bg-content-auth">' + '\t\t<accordion>' + '\t\t\t<accordion-group heading="Login" is-open="true">' + '\t\t\t<!--form ng-submit="login()"-->' + '\t\t\t<form action="/login" method="POST" class="ng-pristine ng-valid">' + '\t    \t<div>' + '\t\t\t\t<div>' + '\t\t\t\t\t<div ng-show="formValidationError"> ' + '\t\t\t\t\t\t<p class="error">' + '\t\t\t\t\t\t\t<span class="label label-important">{{formVaildationError}}</span>' + '\t\t\t\t\t\t</p>' + '\t\t\t\t\t</div>' + '\t\t\t\t\t<div class="clearfix" id="email_field">' + '\t\t\t\t\t\t<div class="input">' + '\t\t\t\t\t\t\t<label for="email" class="youmail" data-icon="e" > Deine E-Mail Adresse</label>' + '\t\t\t\t\t\t\t<input type="text" id="email" name="email" ng-model="email" value="">' + '\t\t\t\t\t\t\t<span class="help-inline danger" ng-show="!!form.email.$error.validator">{{email}} ist ung\xfcltig</span>' + '\t\t\t\t\t\t\t<span class="help-inline success" ng-show="form.email.$error.validator">{{email}} ist ok</span>' + '\t\t\t\t\t\t</div>' + '\t\t\t\t\t</div>' + '\t\t\t\t\t<div class="clearfix  " id="password_field">' + '\t\t\t\t\t\t<div class="input">' + '\t\t\t\t\t\t\t<label for="password" class="youpasswd" data-icon="p">Dein Passwort </label>' + '\t\t\t\t\t\t\t<input type="password" id="password" name="password" required ng-model="password">' + '\t\t\t\t\t\t\t<span class="help-inline"></span>' + '\t\t\t\t\t\t\t<span class="help-block"></span> ' + '\t\t\t\t\t\t</div>' + '\t\t\t\t\t</div>' + '\t\t\t\t\t<input class="btn btn-primary" type="submit" id="submit" value="Submit" />' + '\t\t\t\t\t<br/>' + '\t\t\t\t\t<br/>' + '\t\t\t\t\t<a href="javascript:void(0);" onclick="">Passwort vergessen</a>' + '\t\t\t\t</div>' + '\t    \t</div>' + '\t    \t</form>' + '\t    \t</accordion-group>' + '\t\t\t<accordion-group heading="Register">' + '\t\t\t\t<form ng-submit="register()">' + '\t\t\t\t<div>' + '\t\t\t\t\t<div class="clearfix  " id="reg_name_field">' + '\t\t\t\t\t<div class="input">\t\t\t\t' + '\t\t\t\t\t\t<label for="reg_name" class="youuser" data-icon="u" > Dein Username</label>' + '\t\t\t\t\t\t<input type="text" ng-model="reg_name" id="reg_name" name="name" value="">\t\t' + '\t\t\t\t\t\t<span class="help-inline"></span>' + '\t\t\t\t\t\t<span class="help-block"></span> ' + '\t\t\t\t\t</div>' + '\t\t\t\t\t</div>' + '\t\t\t\t<div class="clearfix  " id="reg_email_field">' + '\t\t\t\t<div class="input">' + '\t\t\t\t\t<label for="reg_email" class="youmail" data-icon="e" > Deine E-Mail Adresse</label>' + '\t\t\t\t\t<input type="text" ng-model="reg_email" id="reg_email" name="email" value="">' + '\t\t\t\t\t<span class="help-inline"></span>' + '\t\t\t\t\t<span class="help-block"></span> ' + '\t\t\t\t</div>' + '\t\t\t\t</div>' + '\t\t\t\t<div class="clearfix" id="reg_password_field">' + '\t\t\t\t\t<label for="reg_password" class="youmail" data-icon="p" > Dein Passwort</label>' + '\t\t\t\t\t<div class="input">\t' + '\t\t\t\t\t\t<input type="password" id="reg_password" ng-model="reg_password" name="password">' + '\t\t\t\t\t\t<span class="help-inline"></span>' + '\t\t\t\t\t\t<span class="help-block"></span>' + '\t\t\t\t\t</div>' + '\t\t\t\t</div>' + '\t\t\t\t<div class="clearfix  " id="reg_repeatPassword_field">' + '\t\t\t\t\t<label for="reg_repeatPassword" class="youmail" data-icon="e" > Wiederhole das gew\xe4hlte Passwort</label>' + '\t\t\t\t\t<div class="input">\t\t\t\t' + '\t\t\t\t\t\t<input type="password" id="reg_repeatPassword" ng-model="reg_repeatPassword" name="repeatPassword">' + '\t\t\t\t\t\t' + '\t\t\t\t\t\t<span class="help-inline"></span>' + '\t\t\t\t\t\t<span class="help-block"></span> ' + '\t\t\t\t\t</div>' + '\t\t\t\t</div>' + '\t\t\t<input type="submit" value="Jetzt registrieren" class="btn btn-primary">' + '\t\t</form>' + '\t</accordion-group>' + '\t</accordion>' + '\t</div>' + '</section>' + '</div>');
+    }
+  ]);
   angular.module('profile/profile.tpl.html', []).run([
     '$templateCache',
     function ($templateCache) {
-      $templateCache.put('profile/profile.tpl.html', '<div class="page bg-content">' + '\t<section ng-controller="ProfileCtrl">' + '    <b>Profile</b><br><br>' + '\t</section>' + '</div>');
+      $templateCache.put('profile/profile.tpl.html', '<div class="page bg-content">' + '\t<section ng-controller="ProfileCtrl">' + '    <p>Welcome, {{User.getName()}}!</p>' + '\t<button ng-click="User.logout()">Logout</button>' + '\t</section>' + '</div>');
     }
   ]);
   angular.module('ui.bootstrap', [
@@ -3163,6 +3245,90 @@
       };
     }
   ]);
+  angular.module('ui.showhide', []).directive('uiShow', [function () {
+      return function (scope, elm, attrs) {
+        scope.$watch(attrs.uiShow, function (newVal, oldVal) {
+          if (newVal) {
+            elm.addClass('ui-show');
+          } else {
+            elm.removeClass('ui-show');
+          }
+        });
+      };
+    }]).directive('uiHide', [function () {
+      return function (scope, elm, attrs) {
+        scope.$watch(attrs.uiHide, function (newVal, oldVal) {
+          if (newVal) {
+            elm.addClass('ui-hide');
+          } else {
+            elm.removeClass('ui-hide');
+          }
+        });
+      };
+    }]).directive('uiToggle', [function () {
+      return function (scope, elm, attrs) {
+        scope.$watch(attrs.uiToggle, function (newVal, oldVal) {
+          if (newVal) {
+            elm.removeClass('ui-hide').addClass('ui-show');
+          } else {
+            elm.removeClass('ui-show').addClass('ui-hide');
+          }
+        });
+      };
+    }]);
+  angular.module('ui.validate', []).directive('uiValidate', function () {
+    return {
+      restrict: 'A',
+      require: 'ngModel',
+      link: function (scope, elm, attrs, ctrl) {
+        var validateFn, watch, validators = {}, validateExpr = scope.$eval(attrs.uiValidate);
+        if (!validateExpr) {
+          return;
+        }
+        if (angular.isString(validateExpr)) {
+          validateExpr = { validator: validateExpr };
+        }
+        angular.forEach(validateExpr, function (exprssn, key) {
+          validateFn = function (valueToValidate) {
+            var expression = scope.$eval(exprssn, { '$value': valueToValidate });
+            if (angular.isFunction(expression.then)) {
+              expression.then(function () {
+                ctrl.$setValidity(key, true);
+              }, function () {
+                ctrl.$setValidity(key, false);
+              });
+              return valueToValidate;
+            } else if (expression) {
+              ctrl.$setValidity(key, true);
+              return valueToValidate;
+            } else {
+              ctrl.$setValidity(key, false);
+              return undefined;
+            }
+          };
+          validators[key] = validateFn;
+          ctrl.$formatters.push(validateFn);
+          ctrl.$parsers.push(validateFn);
+        });
+        if (attrs.uiValidateWatch) {
+          watch = scope.$eval(attrs.uiValidateWatch);
+          if (angular.isString(watch)) {
+            scope.$watch(watch, function () {
+              angular.forEach(validators, function (validatorFn, key) {
+                validatorFn(ctrl.$modelValue);
+              });
+            });
+          } else {
+            angular.forEach(watch, function (expression, key) {
+              scope.$watch(expression, function () {
+                validators[key](ctrl.$modelValue);
+              });
+            });
+          }
+        }
+      }
+    };
+  });
   (function ($) {
     var $event = $.event, $special, resizeTimeout;
     $special = $event.special.debouncedresize = {
